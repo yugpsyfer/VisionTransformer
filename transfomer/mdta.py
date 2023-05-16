@@ -1,6 +1,6 @@
 import torch 
 import torch.nn as nn
-from .block import ConvolutionBlock as convBlock
+from .blocks.convolution_block import ConvolutionBlock as convBlock
 
 
 class MDTA(nn.Module):
@@ -28,8 +28,8 @@ class MDTA(nn.Module):
     
         self.channels = input_channels
 
-        self.alpha = torch.tensor(data=1, requires_grad=True)
-        self.LN = nn.LayerNorm()
+        self.alpha = torch.tensor(data=1.0, requires_grad=True)
+        self.LN = nn.LayerNorm(normalized_shape=(64, input_height, input_width, input_channels))
         
         self.conv_block_Q = convBlock(pc_in=input_channels,
                                       pc_out=input_channels)
@@ -59,12 +59,12 @@ class MDTA(nn.Module):
         V = V.view(b, t, self.num_heads, s)
         Q = Q.view(b, t, self.num_heads, s)
 
-        K = (K.transpose(1,2).view(b*self.num_heads, t, s)).transpose(1,2).contigous().view(b*self.num_heads, t, s)
-        V = (V.transpose(1,2).view(b*self.num_heads, t, s)).transpose(1,2).contigous().view(b*self.num_heads, t, s)
+        K = (K.transpose(1,2).view(b*self.num_heads, t, s)).transpose(1,2).reshap(b*self.num_heads, t, s)
+        V = (V.transpose(1,2).view(b*self.num_heads, t, s)).transpose(1,2).reshape(b*self.num_heads, t, s)
         
-        Q = Q.transpose(1,2).view(b*self.num_heads, t, s)
+        Q = Q.transpose(1,2).reshape(b*self.num_heads, t, s)
         
-        return K,Q,V, b,t,s
+        return K,Q,V,b,t,s
 
 
     def forward(self, x):

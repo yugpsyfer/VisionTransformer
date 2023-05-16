@@ -1,5 +1,5 @@
 import torch.nn as nn
-from .block import ConvolutionBlock as convBlock
+from .blocks.convolution_block import ConvolutionBlock as convBlock
 
 
 class GDFN(nn.Module):
@@ -13,10 +13,10 @@ class GDFN(nn.Module):
     channel expansion factor - 4 (Mentioned in the paper)
 
     """
-    def __init__(self, input_channels, channel_expansion_factor=4) -> None:
+    def __init__(self, input_height, input_width, input_channels, channel_expansion_factor=4) -> None:
         super().__init__()
         
-        self.LN = nn.LayerNorm()
+        self.LN = nn.LayerNorm(normalized_shape=(64, input_height, input_width, input_channels))
         
         self.conv_1 = convBlock(pc_in=input_channels,
                                 pc_out=input_channels*channel_expansion_factor)
