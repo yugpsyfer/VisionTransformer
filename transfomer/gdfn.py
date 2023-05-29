@@ -16,7 +16,7 @@ class GDFN(nn.Module):
     def __init__(self, input_height, input_width, input_channels, channel_expansion_factor=4) -> None:
         super().__init__()
         
-        self.LN = nn.LayerNorm(normalized_shape=(64, input_height, input_width, input_channels))
+        self.LN = nn.LayerNorm(normalized_shape=input_channels)  # (64, input_channels, input_height, input_width)
         
         self.conv_1 = convBlock(pc_in=input_channels,
                                 pc_out=input_channels*channel_expansion_factor)
@@ -30,7 +30,9 @@ class GDFN(nn.Module):
         self.gelu = nn.GELU()
 
     def gating(self, x):
-        o = self.LN(x)
+        x = x.transpose(1,3)
+        x = self.LN(x)
+        o = x.transpose(3,1)
 
         o1 = self.gelu(self.conv_1(o))
         o2 = self.conv_2(o)

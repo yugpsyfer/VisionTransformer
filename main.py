@@ -1,10 +1,11 @@
 import torch
-import wandb
+# import wandb
 from torch.optim import AdamW
+from torch.utils.data.dataloader import DataLoader
 
 from transfomer.transformer import Restormer
 from datasets.raindrop import RainDrop
-from torch.utils.data.dataloader import DataLoader
+
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') 
 
@@ -55,14 +56,15 @@ def evaluate(model, val_loader):
 if __name__ == '__main__':
     epochs = 20
     learning_rate = 3e-4
-    model = Restormer(channels=8,
-                      heads=2,
+    model = Restormer(channels=4,
+                      heads=1,
                       height=h,
                       width=w)
+   
     model.to(device)
     optimizer = AdamW(model.parameters(), lr=learning_rate)
 
     for epoch in range(epochs):
         train_loss = train_single_step(model, train_loader, optimizer)
 
-        print(f"Epoch: {epoch} ,  Loss: {train_loss}")
+        print(f"Epoch: {epoch} || Loss: %.6f{train_loss}")

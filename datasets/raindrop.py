@@ -12,7 +12,7 @@ class RainDrop(Dataset):
         self.root_dir = "./data/RainDrop/"
         self.split = split
         self.to_tensor = transforms.ToTensor()
-        self.resize = transforms.Resize(size=(400,700), antialias=True)
+        self.resize = transforms.Resize(size=(200,500), antialias=True)
 
         if not os.path.exists(self.root_dir+ split):
             with zipfile.ZipFile(self.root_dir+ split + '.zip', 'r') as zipRef:

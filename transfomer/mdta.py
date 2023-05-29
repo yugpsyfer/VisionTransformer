@@ -29,7 +29,7 @@ class MDTA(nn.Module):
         self.channels = input_channels
 
         self.alpha = torch.tensor(data=1.0, requires_grad=True)
-        self.LN = nn.LayerNorm(normalized_shape=(64, input_height, input_width, input_channels))
+        self.LN = nn.LayerNorm(normalized_shape=input_channels)
         
         self.conv_block_Q = convBlock(pc_in=input_channels,
                                       pc_out=input_channels)
@@ -52,15 +52,16 @@ class MDTA(nn.Module):
         Divides channels into attention heads
         """
         b,t,c = K.size()
-
+        
         s = c//self.num_heads
 
         K = K.view(b, t, self.num_heads, s)
         V = V.view(b, t, self.num_heads, s)
         Q = Q.view(b, t, self.num_heads, s)
+    
+        K = K.transpose(1,2).reshape(b*self.num_heads, t, s)
 
-        K = (K.transpose(1,2).view(b*self.num_heads, t, s)).transpose(1,2).reshap(b*self.num_heads, t, s)
-        V = (V.transpose(1,2).view(b*self.num_heads, t, s)).transpose(1,2).reshape(b*self.num_heads, t, s)
+        V = V.transpose(1,2).reshape(b*self.num_heads, t, s)
         
         Q = Q.transpose(1,2).reshape(b*self.num_heads, t, s)
         
@@ -68,27 +69,34 @@ class MDTA(nn.Module):
 
 
     def forward(self, x):
+        x = x.transpose(1,3)
         x = self.LN(x)
+        x = x.transpose(3,1)
         
-        Q = self.conv_block_Q(x).view(-1,
-                                      self.input_height*self.input_width,
-                                      self.channels)
-        
-        K = self.conv_block_K(x).view(-1,
-                                      self.input_height*self.input_width,
-                                      self.channels)
+        width = x.shape[3]
+        height = x.shape[2]
 
-        V = self.conv_block_V(x).view(-1,
-                                      self.input_height*self.input_width,
-                                      self.channels)
+        Q = self.conv_block_Q(x)
+
+        Q = Q.transpose(1,3)
+        Q = Q.reshape(Q.shape[0],Q.shape[1]*Q.shape[2],Q.shape[3])
+       
+        K = self.conv_block_K(x)
+        K = K.transpose(1,3)
+        K = K.reshape(K.shape[0],K.shape[1]*K.shape[2],K.shape[3])
+
+        V = self.conv_block_V(x)
+        V =  V.transpose(1,3)
+        V = V.reshape(V.shape[0],V.shape[1]*V.shape[2],V.shape[3])
 
         K,Q,V,b,t,s = self.make_attention_heads(K,Q,V)
+        
+        soft = self.softmax(torch.bmm(K.transpose(1,2),Q)/self.alpha)
+        
+        dot_prod = (torch.bmm(V, soft)).view(b,self.num_heads,t,s)
 
-        dot_prod = (torch.bmm(V, self.softmax(torch.bmm(K,Q)/self.alpha))).view(b,self.num_heads,t,s)
-
-        dot_prod = dot_prod.transpose(1,2).view(b,t,self.num_heads*s)
-        dot_prod = dot_prod.contiguous().view(b,self.input_height,self.input_width,self.num_heads*s)
-
+        dot_prod = dot_prod.contiguous().view(b,self.num_heads*s,height,width)
+        
         x_cap = self.conv_final(dot_prod) + x
 
         return x_cap
