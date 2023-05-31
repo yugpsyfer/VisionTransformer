@@ -28,19 +28,14 @@ class Restormer(nn.Module):
                                     width=width)
 
     def forward(self, x):
-        
         o = self.initial_convolution_layer(x)
 
         # Encoders 
-        
         o1 = self.encoder_level_1(o)
-
-
         o3 = self.middle(self.downsample(o1))
 
         #decoders
         o3 = self.upsample(o3)
-
         o1 = torch.cat((o3,o1), dim=1)
         o1 = self.decoder_level_1(o1)
 
