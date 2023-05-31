@@ -42,8 +42,6 @@ class Restormer(nn.Module):
         o3 = self.upsample(o3)
 
         o1 = torch.cat((o3,o1), dim=1)
-
-        
         o1 = self.decoder_level_1(o1)
 
         o1 = self.final_convolution_layer(o1)

@@ -1,10 +1,16 @@
+import os
+import shutil
+from PIL import Image
+
 import torch
 # import wandb
 from torch.optim import AdamW
 from torch.utils.data.dataloader import DataLoader
+from torchvision import transforms
 
 from transfomer.transformer import Restormer
 from datasets.raindrop import RainDrop
+
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') 
@@ -52,9 +58,27 @@ def evaluate(model, val_loader):
     return val_loss
 
 
+def results(model, device):
+    total_images = len(os.listdir('./results'))//2
+    resize = transforms.Resize(size=(300,600), antialias=True)
+    toTensor = transforms.ToTensor()
+    toPILImage= transforms.ToPILImage()
+    
+    destination = './results/'
+
+    with Image.open('./data/RainDrop/train/data/' + str(total_images + 1) + "_rain.png") as targetImg:
+        targetImgTensor = resize(toTensor(targetImg)).to(device)
+        ouputImg = toPILImage(model(targetImgTensor))
+
+        targetImg.save(destination + str(total_images + 1) + '_target.png')
+        ouputImg.save(destination + str(total_images + 1) + '_output.png')
+    
+    shutil.copy(src="./data/RainDrop/train/gt/" + str(total_images + 1) + "_clean.png", dst=destination + str(total_images + 1) + '_clean.png')
+
+
 
 if __name__ == '__main__':
-    epochs = 20
+    epochs = 100
     learning_rate = 3e-4
     model = Restormer(channels=4,
                       heads=1,
@@ -67,4 +91,9 @@ if __name__ == '__main__':
     for epoch in range(epochs):
         train_loss = train_single_step(model, train_loader, optimizer)
 
-        print(f"Epoch: {epoch} || Loss: %.6f{train_loss}")
+        print(f"Epoch: {epoch} || Loss: {train_loss:.6f}")
+    
+    results(model, device)
+
+    torch.save(model, './checkpoint/best.pt')
+
