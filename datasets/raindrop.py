@@ -12,22 +12,22 @@ class RainDrop(Dataset):
         self.root_dir = "./data/RainDrop/"
         self.split = split
         self.to_tensor = transforms.ToTensor()
-        self.resize = transforms.Resize(size=(300,600), antialias=True)
+        self.resize = transforms.Resize(size=(200,400), antialias=True)
 
         if not os.path.exists(self.root_dir+ split):
             with zipfile.ZipFile(self.root_dir+ split + '.zip', 'r') as zipRef:
                 zipRef.extractall(self.root_dir)
         
-        self.noisy_files = os.listdir(self.root_dir + split + '/data/')
+        self.noisy_files = os.listdir(self.root_dir + split + '/gauss_data/')  # replaced /data/ with /gt/
         self.GT = os.listdir(self.root_dir + split + '/gt/')
         
     def __len__(self):
-        return len(os.listdir(self.root_dir + self.split + '/data/'))
+        return len(os.listdir(self.root_dir + self.split + '/gauss_data/'))
 
     def __getitem__(self, index):
         src = self.root_dir + self.split
 
-        with Image.open(src + '/data/' + self.noisy_files[index]) as img:
+        with Image.open(src + '/gauss_data/' + self.noisy_files[index]) as img:   # replaced /data/ with /gt/
             data = self.resize(self.to_tensor(img))
         
         with Image.open(src + '/gt/' + self.GT[index]) as img:
@@ -37,9 +37,9 @@ class RainDrop(Dataset):
         return data, GT
     
     def get_image_dimension(self):
-        src = self.root_dir + self.split + '/data/'
+        src = self.root_dir + self.split + '/gt/'
 
-        with Image.open(src + self.noisy_files[0]) as img:
+        with Image.open(src + self.GT[0]) as img:
             data = self.resize(self.to_tensor(img))
         
         return data.shape

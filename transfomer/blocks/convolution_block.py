@@ -11,7 +11,8 @@ class ConvolutionBlock(nn.Module):
 
     def forward(self, x):
         o = self.PC(x)
-        channels = [self.DC(torch.unsqueeze(o[:,i,:,:], dim=1)).squeeze() for i in range(o.shape[1])]
+
+        channels = [torch.squeeze(self.DC(torch.unsqueeze(o[:,i,:,:], dim=1)), dim=1) for i in range(o.shape[1])]
 
         o = torch.stack(channels, dim=1)
     

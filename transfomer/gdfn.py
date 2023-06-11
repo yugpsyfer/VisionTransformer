@@ -16,7 +16,7 @@ class GDFN(nn.Module):
     def __init__(self, input_height, input_width, input_channels, channel_expansion_factor=4) -> None:
         super().__init__()
         
-        self.LN = nn.LayerNorm(normalized_shape=input_channels)  # (64, input_channels, input_height, input_width)
+        self.LN = nn.LayerNorm(normalized_shape=input_channels)
         
         self.conv_1 = convBlock(pc_in=input_channels,
                                 pc_out=input_channels*channel_expansion_factor)
@@ -42,6 +42,6 @@ class GDFN(nn.Module):
     def forward(self, x):
         out = self.gating(x)
 
-        return self.conv_final(out) + x
+        return self.conv_final(out) + x 
 
 

@@ -4,7 +4,7 @@ from PIL import Image
 
 import torch
 # import wandb
-from torch.optim import AdamW
+from torch.optim import AdamW, Adam
 from torch.utils.data.dataloader import DataLoader
 from torchvision import transforms
 
@@ -18,7 +18,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 loss = torch.nn.MSELoss()
 
 train_set = RainDrop(split='train')
-train_loader = DataLoader(train_set, batch_size=64, shuffle=True)
+train_loader = DataLoader(train_set, batch_size=4, shuffle=True)
 
 c,h,w = train_set.get_image_dimension()
 
@@ -59,16 +59,16 @@ def evaluate(model, val_loader):
 
 
 def results(model, device):
-    total_images = len(os.listdir('./results'))//2
-    resize = transforms.Resize(size=(300,600), antialias=True)
+    total_images = len(os.listdir('./results'))//3
+    resize = transforms.Resize(size=(200,400), antialias=True)
     toTensor = transforms.ToTensor()
     toPILImage= transforms.ToPILImage()
     
     destination = './results/'
 
     with Image.open('./data/RainDrop/train/data/' + str(total_images + 1) + "_rain.png") as targetImg:
-        targetImgTensor = resize(toTensor(targetImg)).to(device)
-        ouputImg = toPILImage(model(targetImgTensor))
+        targetImgTensor = torch.unsqueeze(resize(toTensor(targetImg)).to(device), dim=0)
+        ouputImg = toPILImage(model(targetImgTensor).squeeze(dim=0))
 
         targetImg.save(destination + str(total_images + 1) + '_target.png')
         ouputImg.save(destination + str(total_images + 1) + '_output.png')
@@ -78,10 +78,10 @@ def results(model, device):
 
 
 if __name__ == '__main__':
-    epochs = 100
+    epochs = 500
     learning_rate = 3e-4
-    model = Restormer(channels=4,
-                      heads=1,
+    model = Restormer(channels=16,
+                      heads=8,
                       height=h,
                       width=w)
    

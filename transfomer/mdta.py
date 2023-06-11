@@ -9,7 +9,7 @@ class MDTA(nn.Module):
 
     This class takes (B,H,W,C) input where B is batch, H is height and W is widt and C is channels.
     The output and input of each block is going to be of same dimension.
-    The Downsampling / Upsampling will be handled by a different class.
+    The Downsampling / Upsampling will be handled by a different piece of code.
 
     Value - B,H*W,C
     Key - B,C,H*W
@@ -69,15 +69,14 @@ class MDTA(nn.Module):
 
 
     def forward(self, x):
-        x = x.transpose(1,3)
+        x = x.transpose(1,3)  # shift channels to the last dimension
         x = self.LN(x)
-        x = x.transpose(3,1)
-        
+        x = x.transpose(3,1) # shift channels to 2nd dimension
+
         width = x.shape[3]
         height = x.shape[2]
 
         Q = self.conv_block_Q(x)
-
         Q = Q.transpose(1,3)
         Q = Q.reshape(Q.shape[0],Q.shape[1]*Q.shape[2],Q.shape[3])
        
@@ -93,12 +92,11 @@ class MDTA(nn.Module):
         
         soft = self.softmax(torch.bmm(K.transpose(1,2),Q)/self.alpha)
         
-        dot_prod = (torch.bmm(V, soft)).view(b,self.num_heads,t,s)
-
-        dot_prod = dot_prod.contiguous().view(b,self.num_heads*s,height,width)
+        dot_prod = (torch.bmm(V, soft)).view(b,self.num_heads,t,s).transpose(2,3)  # Added transpose
+        dot_prod = dot_prod.reshape(b,self.num_heads*s,height,width)
         
         x_cap = self.conv_final(dot_prod) + x
-
+        
         return x_cap
 
 
