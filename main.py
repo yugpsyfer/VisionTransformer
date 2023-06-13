@@ -18,7 +18,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 loss = torch.nn.MSELoss()
 
 train_set = RainDrop(split='train')
-train_loader = DataLoader(train_set, batch_size=4, shuffle=True)
+train_loader = DataLoader(train_set, batch_size=8, shuffle=True)
 
 c,h,w = train_set.get_image_dimension()
 
@@ -80,8 +80,8 @@ def results(model, device):
 if __name__ == '__main__':
     epochs = 500
     learning_rate = 3e-4
-    model = Restormer(channels=16,
-                      heads=8,
+    model = Restormer(channels=32,
+                      heads=4,
                       height=h,
                       width=w)
    

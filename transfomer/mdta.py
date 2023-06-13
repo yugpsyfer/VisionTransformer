@@ -25,57 +25,62 @@ class MDTA(nn.Module):
         self.num_heads = num_heads
         self.input_height = input_height
         self.input_width = input_width
-    
         self.channels = input_channels
+        
+        if input_channels % num_heads != 0:
+            raise "INPUT CHANNELS MUST BE DIVISIBLE BY NUMBER OF HEADS."
 
-        self.alpha = torch.tensor(data=1.0, requires_grad=True)
+        head_size = input_channels//num_heads
+
+        self.multihead_SA = nn.ModuleList([SingleHeadMDTA(input_height, input_width, input_channels ,head_size) for _ in range(num_heads)])        
+
         self.LN = nn.LayerNorm(normalized_shape=input_channels)
         
-        self.conv_block_Q = convBlock(pc_in=input_channels,
-                                      pc_out=input_channels)
-        
-        self.conv_block_K = convBlock(pc_in=input_channels,
-                                      pc_out=input_channels)
-        
-        self.conv_block_V = convBlock(pc_in=input_channels,
-                                      pc_out=input_channels)
 
         self.conv_final = nn.Conv2d(kernel_size=(1,1),
                                     out_channels=input_channels,
                                     in_channels=input_channels)
         
-        self.softmax = nn.Softmax(dim=-1)
-
-
-    def make_attention_heads(self, Q, K, V):
-        """
-        Divides channels into attention heads
-        """
-        b,t,c = K.size()
-        
-        s = c//self.num_heads
-
-        K = K.view(b, t, self.num_heads, s)
-        V = V.view(b, t, self.num_heads, s)
-        Q = Q.view(b, t, self.num_heads, s)
-    
-        K = K.transpose(1,2).reshape(b*self.num_heads, t, s)
-
-        V = V.transpose(1,2).reshape(b*self.num_heads, t, s)
-        
-        Q = Q.transpose(1,2).reshape(b*self.num_heads, t, s)
-        
-        return K,Q,V,b,t,s
-
 
     def forward(self, x):
         x = x.transpose(1,3)  # shift channels to the last dimension
         x = self.LN(x)
         x = x.transpose(3,1) # shift channels to 2nd dimension
 
-        width = x.shape[3]
-        height = x.shape[2]
+        multihead_result = torch.concat([HEAD(x) for HEAD in self.multihead_SA], dim=1)
 
+        x_cap = self.conv_final(multihead_result) + x
+        
+        return x_cap
+
+
+
+class SingleHeadMDTA(nn.Module):
+    def __init__(self, input_height, input_width, input_channels ,head_channel_size) -> None:
+        super().__init__()
+        
+        self.input_height = input_height
+        self.input_width = input_width
+        self.channels = head_channel_size
+
+        self.alpha = torch.tensor(data=1.0, requires_grad=True)
+        
+        self.conv_block_Q = convBlock(pc_in=input_channels,
+                                      pc_out=head_channel_size)
+        
+        self.conv_block_K = convBlock(pc_in=input_channels,
+                                      pc_out=head_channel_size)
+        
+        self.conv_block_V = convBlock(pc_in=input_channels,
+                                      pc_out=head_channel_size)
+        
+        self.softmax = nn.Softmax(dim=-1)
+    
+
+    def forward(self, x):
+        """
+        Channels are in the last ===> B, HxW, C
+        """
         Q = self.conv_block_Q(x)
         Q = Q.transpose(1,3)
         Q = Q.reshape(Q.shape[0],Q.shape[1]*Q.shape[2],Q.shape[3])
@@ -86,17 +91,11 @@ class MDTA(nn.Module):
 
         V = self.conv_block_V(x)
         V =  V.transpose(1,3)
-        V = V.reshape(V.shape[0],V.shape[1]*V.shape[2],V.shape[3])
+        V = V.reshape(V.shape[0], V.shape[1]*V.shape[2], V.shape[3])
 
-        K,Q,V,b,t,s = self.make_attention_heads(K,Q,V)
-        
         soft = self.softmax(torch.bmm(K.transpose(1,2),Q)/self.alpha)
         
-        dot_prod = (torch.bmm(V, soft)).view(b,self.num_heads,t,s).transpose(2,3)  # Added transpose
-        dot_prod = dot_prod.reshape(b,self.num_heads*s,height,width)
-        
-        x_cap = self.conv_final(dot_prod) + x
-        
-        return x_cap
+        dot_prod = torch.bmm(V, soft).view(-1, self.input_width, self.input_height, self.channels).transpose(1,3).contiguous()
 
+        return dot_prod
 

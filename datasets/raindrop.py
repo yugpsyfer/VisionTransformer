@@ -28,10 +28,10 @@ class RainDrop(Dataset):
         src = self.root_dir + self.split
 
         with Image.open(src + '/gauss_data/' + self.noisy_files[index]) as img:   # replaced /data/ with /gt/
-            data = self.resize(self.to_tensor(img))
+            data = self.resize(self.to_tensor(img))/255
         
         with Image.open(src + '/gt/' + self.GT[index]) as img:
-            GT = self.resize(self.to_tensor(img))
+            GT = self.resize(self.to_tensor(img))/255
 
 
         return data, GT
