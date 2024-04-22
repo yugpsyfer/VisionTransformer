@@ -13,7 +13,7 @@ class GDFN(nn.Module):
     channel expansion factor - 4 (Mentioned in the paper)
 
     """
-    def __init__(self, input_height, input_width, input_channels, channel_expansion_factor=4) -> None:
+    def __init__(self, input_height, input_width, input_channels, channel_expansion_factor=2) -> None:
         super().__init__()
         
         self.LN = nn.LayerNorm(normalized_shape=input_channels)
@@ -30,13 +30,15 @@ class GDFN(nn.Module):
         self.gelu = nn.GELU()
 
     def gating(self, x):
-        x = x.transpose(1,3)
+        x = x.permute(0,3,2,1)
+        
         x = self.LN(x)
-        o = x.transpose(3,1)
+        o = x.permute(0,3,2,1)
 
         o1 = self.gelu(self.conv_1(o))
+        
         o2 = self.conv_2(o)
-
+        
         return o1 * o2
         
     def forward(self, x):

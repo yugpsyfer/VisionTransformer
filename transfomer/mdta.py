@@ -30,11 +30,11 @@ class MDTA(nn.Module):
         if input_channels % num_heads != 0:
             raise "INPUT CHANNELS MUST BE DIVISIBLE BY NUMBER OF HEADS."
 
-        head_size = input_channels//num_heads
+        self.head_size = input_channels//num_heads
 
-        self.multihead_SA = nn.ModuleList([SingleHeadMDTA(input_height, input_width, input_channels ,head_size) for _ in range(num_heads)])        
+        self.multihead_SA = nn.ModuleList([SingleHeadMDTA(input_height, input_width, self.head_size ,self.head_size) for _ in range(num_heads)])        
 
-        self.LN = nn.LayerNorm(normalized_shape=input_channels)
+        self.LN = nn.LayerNorm(normalized_shape=[input_channels,input_width,input_height])
         
 
         self.conv_final = nn.Conv2d(kernel_size=(1,1),
@@ -43,12 +43,10 @@ class MDTA(nn.Module):
         
 
     def forward(self, x):
-        x = x.transpose(1,3)  # shift channels to the last dimension
         x = self.LN(x)
-        x = x.transpose(3,1) # shift channels to 2nd dimension
 
-        multihead_result = torch.concat([HEAD(x) for HEAD in self.multihead_SA], dim=1)
-
+        multihead_result = torch.concat([HEAD(x[:,self.head_size*idx:(idx+1)*self.head_size,:,:]) for idx, HEAD in enumerate(self.multihead_SA)], dim=1)
+        
         x_cap = self.conv_final(multihead_result) + x
         
         return x_cap
@@ -75,27 +73,27 @@ class SingleHeadMDTA(nn.Module):
                                       pc_out=head_channel_size)
         
         self.softmax = nn.Softmax(dim=-1)
-    
+        self.dropout = nn.Dropout3d(p=0.2)
 
     def forward(self, x):
         """
         Channels are in the last ===> B, HxW, C
         """
         Q = self.conv_block_Q(x)
-        Q = Q.transpose(1,3)
+        Q = Q.permute(0,3,2,1)
         Q = Q.reshape(Q.shape[0],Q.shape[1]*Q.shape[2],Q.shape[3])
        
         K = self.conv_block_K(x)
-        K = K.transpose(1,3)
+        K = K.permute(0,3,2,1)
         K = K.reshape(K.shape[0],K.shape[1]*K.shape[2],K.shape[3])
 
         V = self.conv_block_V(x)
-        V =  V.transpose(1,3)
+        V =  V.permute(0,3,2,1)
         V = V.reshape(V.shape[0], V.shape[1]*V.shape[2], V.shape[3])
-
-        soft = self.softmax(torch.bmm(K.transpose(1,2),Q)/self.alpha)
         
-        dot_prod = torch.bmm(V, soft).view(-1, self.input_width, self.input_height, self.channels).transpose(1,3).contiguous()
+        soft = self.softmax(torch.bmm(K.permute(0,2,1),Q)/self.alpha)
+        
+        dot_prod = torch.bmm(V, soft).view(-1, self.input_width, self.input_height, self.channels).permute(0,3,2,1).contiguous()
 
-        return dot_prod
+        return self.dropout(dot_prod)
 

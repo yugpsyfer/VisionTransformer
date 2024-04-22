@@ -1,5 +1,5 @@
 """
-Was made to add gaussian noise in a clean daatset then I ended up using the raindrop dataset.
+Add noise to the images
 """
 
 

@@ -1,10 +1,17 @@
+"""
+To Do: 
+    1. Resize the images and make them more smaller.
+    2. Re - adjust the channels and other paramters of the model.
+"""
+
+
 import os
 import shutil
 from PIL import Image
 
 import torch
 # import wandb
-from torch.optim import AdamW, Adam
+from torch.optim import AdamW, Adam, SGD
 from torch.utils.data.dataloader import DataLoader
 from torchvision import transforms
 
@@ -18,7 +25,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 loss = torch.nn.MSELoss()
 
 train_set = RainDrop(split='train')
-train_loader = DataLoader(train_set, batch_size=8, shuffle=True)
+train_loader = DataLoader(train_set, batch_size=256, shuffle=True)
 
 c,h,w = train_set.get_image_dimension()
 
@@ -60,7 +67,7 @@ def evaluate(model, val_loader):
 
 def results(model, device):
     total_images = len(os.listdir('./results'))//3
-    resize = transforms.Resize(size=(200,400), antialias=True)
+    resize = transforms.Resize(size=(128,128), antialias=True)
     toTensor = transforms.ToTensor()
     toPILImage= transforms.ToPILImage()
     
@@ -80,18 +87,20 @@ def results(model, device):
 if __name__ == '__main__':
     epochs = 500
     learning_rate = 3e-4
-    model = Restormer(channels=32,
-                      heads=4,
+    model = Restormer(channels=8,
+                      heads=1,
                       height=h,
                       width=w)
    
     model.to(device)
+    print(model)
     optimizer = AdamW(model.parameters(), lr=learning_rate)
 
     for epoch in range(epochs):
         train_loss = train_single_step(model, train_loader, optimizer)
 
-        print(f"Epoch: {epoch} || Loss: {train_loss:.6f}")
+        print(f"Epoch: {epoch} | Loss: {train_loss:.6f}")
+        
     
     results(model, device)
 
